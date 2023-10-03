@@ -1,0 +1,36 @@
+﻿namespace libflow.stmts
+{
+    public enum AstNodeType
+    {
+        Break,
+        Concatenation,
+        Call,
+        Continue,
+        DoWhile,
+        External,
+        For,
+        Function,
+        Goto,
+        IfElse,
+        If,
+        Label,
+        Return,
+        Switch,
+        While,
+        Empty,
+        Binary,
+        Value,
+        Member,
+        Index,
+        Postfix,
+        Block,
+        Obstructive,
+        Conditional,
+        Number,
+        Boolean,
+        Arithmetic,
+        Assign,
+        Parenthese,
+        Newline
+    }
+}

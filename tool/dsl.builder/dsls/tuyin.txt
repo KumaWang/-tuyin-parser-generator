@@ -1,0 +1,140 @@
+﻿%parser.entry=define
+%parser.class=TuyinParser
+%parser.namespace=Tuitor.packages.richtext.format.parsers
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=false
+%parser.timeout=2000
+%parser.inline=0
+%parser.debug=true
+%token.clarity=false
+%token.auto=true
+%import Tuitor.packages.richtext.format
+%formal ParseReport
+			
+...\n											^LITERAL
+^,+												^DEFNAME
+(0-9)+											^NUMBER
+((a-z)|(0-9))+									^CHAR
+(^\n)*											^FORMAT
+..```											^FORMAT_DATA
+(\ |\n|\r|\t)+									
+
+rule define<Define>
+	: DEFNAME ',' NUMBER ',' NUMBER ',' NUMBER ',' 
+	  DEFNAME ',' NUMBER '{' tuyin '}'			^new Define($1, $3, $5, $7, $9, $11, $13)
+	;
+
+rule tuyin<Tuyin>
+	: 											^new Tuyin()
+	| tuyin_item								^new Tuyin($1)
+	| tuyin tuyin_item							^$1.Add($2)
+	;
+
+rule tuyin_item<TuyinItem>
+	: simple_item								^$1
+	| complex_item								^$1
+	;
+
+rule simple_item<TuyinItem>
+	: delete									^$1
+	| underline									^$1
+	| label										^$1
+	| image										^$1
+	| prim										^$1
+	;
+
+rule literal<Literal>
+	: LITERAL									^new Literal(mInput, $1)
+	;
+
+rule prim<TuyinItem>	
+	: numtitle									^$1
+	| link										^$1
+	| bold										^$1
+	| italicsbold								^$1
+	| italics									^$1
+	| numtitle									^$1
+	| literal									^$1
+	;
+
+rule italics<TuyinItem>
+	: '*' literal '*'							^new Italics($2, $1, $3)
+	;
+
+rule bold<TuyinItem>
+	: '**' literal '**'							^new Bold($2, $1, $3)
+	;
+
+rule italicsbold<TuyinItem>
+	: '***' literal '***'						^new ItalicsBold($2, $1, $3)
+	;
+
+rule label<TuyinItem>
+	: '[^' literal ']'							^new Label($2, $1, $3)
+	;
+
+rule numtitle<NumberTitle>
+	: '#' numtitle								^$2.AddLevel($1)
+	| '#' literal								^new NumberTitle($1, $2)
+	;
+
+rule link<Link>
+	: '[' literal ']' '(' literal ')'			^new Link($2, $5, $1, $6)
+	| '[' literal ']'							^new Link($2, $1, $3)
+	;
+
+rule image<TuyinItem>
+	: '!' link									^new Image($2, $1)
+	;
+
+rule delete<TuyinItem>
+	: '~~' prim '~~'							^new Delete($2, $1, $3)
+	;
+
+rule underline<TuyinItem>
+	: '++' prim '++'							^new Underline($2, $1, $3)
+	;
+
+rule complex_item<TuyinItem>
+	: table										^$1
+	| unordered_list							^$1
+	//| ordered_list							^$1
+	;
+
+rule format_text<TuyinItem>
+	: '```' FORMAT FORMAT_DATA '```'			^new FormatText($2, $3, $1, $4)
+	;
+
+rule unordered_list<UnorderedList>
+	: unordered_list_item						^new UnorderedList($1)
+	| unordered_list unordered_list_item		^$1.Add($2)
+	;
+
+rule unordered_list_item<UnorderedListItem>
+	: '-' simple_item							^new UnorderedListItem($1, $2)
+	;
+
+rule ordered_list<OrderedList>
+	: ordered_list_item							^new OrderedList($1)
+	| ordered_list ordered_list_item			^$1.Add($2)
+	;
+
+rule ordered_list_item<OrderedListItem>
+	: CHAR '.' simple_item						^new OrderedListItem($1, $3)
+	;
+
+rule table<Table>
+	: table_row									^new Table($1)
+	| table table_row							^$1.Add($2)
+	;
+	
+rule table_row<TableRow>
+	: '|' table_row_item						^new TableRow($2)
+	| table_row table_row_item					^$1.Add($2)
+	;
+
+rule table_row_item<TableRowItem>
+	: simple_item '|'							^new TableRowItem($1)
+	;
+

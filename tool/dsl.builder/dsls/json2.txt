@@ -1,0 +1,69 @@
+﻿%parser.entry=json
+%parser.class=JsonParser
+%parser.namespace=TuEditor.packages.richtext.format.parser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=true
+%parser.timeout=2000
+%parser.inline=0
+%parser.debug=true
+%token.clarity=false
+%token.auto=true
+%import TuEditor.packages.richtext.format
+%formal ParseReport
+
+\-?(0-9)+(\.(0-9)+)?										^NUMBER
+(NUMBER)e(NUMBER)											^SCIENTIFIC
+(A-Z|a-z|0-9)												^NCODE
+\\u(NCODE)(NCODE)(NCODE)(NCODE)								^UNICODE
+0x(NCODE)(NCODE)											^HEX
+\\.															^ESCAPE
+^\"|(\\\")													^CHAR
+\"(CHAR)*\"													^STRING
+(\ |\n|\r|\t)+			
+\/\/(^\n)*													#57A64A
+
+rule json<Json>
+	: json_item												
+	;
+
+rule json_item<JsonItem>
+	: json_obj												^$1										
+	| json_arr												^$1
+	| json_prim												^$1
+	;
+
+rule json_obj<JsonItem>
+	: '{' json_obj_mems '}'									^new JsonObject($1)
+	;
+
+rule json_obj_mems<JsonMembers>
+	:														^new JsonMembers()
+	| json_obj_mem											^new JsonMembers($1)
+	| json_obj_mems ',' json_obj_mem						^$1.Add($3)
+	;
+
+rule json_obj_mem<JsonMember>
+	: STRING ':' json_item									^new JsonMember($1, $3)		
+	;
+
+rule json_arr<JsonItem>
+	: '[' json_arr_items ']'								^new JsonArray($2)
+	;
+
+rule json_arr_items<JsonArrayItems>
+	:														^new JsonArrayItems()
+	| json_item												^new JsonArrayItems($1)
+	| json_arr_items ',' json_item							^$1.Add($3)
+	;
+
+rule json_prim<JsonItem>
+	: 'null'												^new JsonNull($1)
+	| 'true'												^new JsonTrue($1)
+	| 'false'												^new JsonFalse($1)
+	| NUMBER												^new JsonNumber($1)
+	| SCIENTIFIC											^new JsonScientific($1)
+	| UNICODE												^new JsonUnicode($1)
+	| HEX													^new JsonHex($1)
+	| STRING												^new JsonString($1)
+	;

@@ -1,0 +1,32 @@
+﻿%parser.entry=csv
+%parser.class=CsvParser
+%parser.namespace=TuEditor.packages.richtext.format.parser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=true
+%parser.timeout=2000
+%parser.inline=0
+%parser.debug=true
+%token.clarity=false
+%token.auto=true
+%import TuEditor.packages.richtext.format
+%formal ParseReport
+
+^\"|(\\\")													^CHAR
+\"(CHAR)*\"													^STRING
+^(\,\n\r\")+                                                ^TEXT
+\n|(\r\n)                                                   ^NEWLINE
+
+rule csv
+	: row												
+	;
+
+rule row
+    : field                                                 
+    | row ',' field NEWLINE                                 ^Table($2.SourceSpan, formal_0)
+    ;
+
+rule field
+    : TEXT
+    | STRING
+    ;

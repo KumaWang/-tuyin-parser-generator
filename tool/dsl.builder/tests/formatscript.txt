@@ -1,0 +1,114 @@
+﻿%parser.entry=parser
+%parser.class=FormatParser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=true
+%parser.timeout=2000
+%parser.inline=0
+%token.clarity=false
+%token.auto=true
+%import System.Collections.Generic
+%import AVGCreator.packages.script.ast
+%import Index=AVGCreator.packages.script.ast.Index
+
+%format.default=1
+%indent.default=4
+
+(\ |\n|\r|\t)+									
+'//'..\n													
+'/*'..'*/'													
+\%..\n														^OPATION
+\\.															^ESCAPE
+(A-Z|a-z|0-9)												^NCODE
+\\u(NCODE)(NCODE)(NCODE)(NCODE)								^UNICODE
+0x(NCODE)(NCODE)											^HEX
+^\'|ESCAPE													^CHAR
+\'(CHAR|ESCAPE|UNICODE|HEX)*\'								^STRING
+(_|A-Z|a-z)(_|A-Z|a-z|0-9)*									^ID
+(0-9)+(\.(0-9)*)?											^NUMBER
+'if'														^IF
+'while'														^WHILE
+'switch'													^SWITCH
+'break'														^BREAK
+'continue'													^CONTINUE
+'case'														^CASE
+'default'													^DEFAULT
+'func'														^FUNC
+'true'														^TRUE
+'false'														^FALSE
+\<{ReadType()}												^TYPE
+
+
+# PARSER
+rule parser<Parser>
+	:														^new Parser()
+	| parser_item											^new Parser($1)	
+	| parser parser_item									^$1.Add($2)
+	;
+
+rule parser_item<ParserItem>
+	: token													^$1
+	| rule													^$1
+	| OPATION												^new Opation($1)
+	;
+
+# SETTING
+rule setting<Setting>
+	:														^new Setting()
+	| setting_item											^new Setting($1)
+	| setting '|' setting_item								^$1.Add($3)
+	;
+
+rule setting_item<SettingItem>
+	: ID													^new SettingItem($1)
+	| ID '=' setting_value									^new SettingItem($1, $3)
+	;
+
+rule setting_value<SettingValue>
+	: 'true'												^new BooleanValue($1, true)
+	| 'false'												^new BooleanValue($1, false)
+	| NUMBER												^new NumberValue($1)
+	| STRING												^new StringValue($1)
+	;
+
+# TOKEN
+rule token<Token>
+	: token_or '^' ID										^new Token($1, $3)
+	| token_or '^' ID '[' setting ']'						^new Token($1, $3, $5)
+	;
+
+rule token_or<TokenItem>
+	: token_token											^$1
+	| token_or '|' token_token								^new TokenOr($1, $3)
+	;
+
+rule token_token<TokenItem>
+	: token_action											^$1
+	| token_token token_action								^new TokenToken($1, $2)
+	;
+
+rule token_action<TokenItem>
+	: token_post											^$1
+	| token_post script										^new TokenAction($1, $2)
+	;
+
+rule token_post<TokenItem>
+	: token_prim											^$1
+	| token_prim '+'										^new TokenMany1($1)
+	| token_prim '*'										^new TokenMany($1)
+	| token_prim '?'										^new TokenOptional($1)
+	;
+
+rule token_prim<TokenItem>
+	: token_literal											^$1
+	| '[' token_literal '-' token_literal ']'				^new TokenRange($2, $4)
+	| '^' token_literal										^new TokenExcept($2)
+	| token_literal '..' token_literal						^new TokenUntil($1, $3)
+	| '(' token_or ')'										^$2
+	;
+
+rule token_literal<TokenItem>
+	: '.'													^new TokenAny($1)
+	| STRING												^new TokenString($1)
+	| LITERAL												^new TokenLiteral($1)
+	;

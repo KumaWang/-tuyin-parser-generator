@@ -1,0 +1,93 @@
+﻿%parser.entry=tips
+%parser.class=TipsParser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=true
+%parser.timeout=2000
+%parser.inline=0
+%token.clarity=false
+%token.auto=true
+%import TuEditor.packages.tips.ast
+
+(\ |\n|\r|\t)+							
+\'(^\'|(\\\'))*\'								^STRING
+.*												^LITERAL
+
+rule tips<Tips>
+	:											^new Tips()
+	| tips_item									^new Tips($1)
+	| tips tips_item							^$1.Add($2)
+	;
+
+rule tips_item<TipsItem>
+	: italics									^$1
+	| bold										^$1
+	| italicsbold								^$1
+	| delete									^$1
+	| underline									^$1
+	| label										^$1
+	| maintitle									^$1
+	| subtitle									^$1
+	| numtitle									^$1
+	| link										^$1
+	| image										^$1
+	| prim										^$1
+	;
+
+rule italics<TipsItem>
+	: '*' prim '*'								^new Italics($2)
+	| '_' prim '_'								^new Italics($2)
+	;
+
+rule bold<TipsItem>
+	: '**' prim '**'							^new Bold($2)
+	| '__' prim '__'							^new Bold($2)
+	;
+
+rule italicsbold<TipsItem>
+	: '***' prim '***'							^new ItalicsBold($2)
+	| '___' prim '___'							^new ItalicsBold($2)
+	;
+
+rule delete<TipsItem>
+	: '~~' prim '~~'							^new Delete($2)
+	;
+
+rule underline<TipsItem>
+	: '_' prim									^new Underline($2)
+	;
+
+rule label<TipsItem>
+	: '[^' prim ']'								^new Label($2)
+	;
+
+rule maintitle<TipsItem>
+	: prim '==='								^new MainTitle($1)
+	;
+
+rule subtitle<TipsItem>
+	: prim '---'								^new SubTitle($1)
+	;
+
+rule numtitle<TipsItem>
+	: '#' prim									^new NumberTitle(1, $1)
+	| '##' prim									^new NumberTitle(2, $1)
+	| '###' prim								^new NumberTitle(3, $1)
+	| '####' prim								^new NumberTitle(4, $1)
+	| '#####' prim								^new NumberTitle(5, $1)
+	| '######' prim								^new NumberTitle(6, $1)
+	;
+
+rule link<TipsItem>
+	: '[' prim ']' '(' prim ')'					^new Link($2, $5)
+	| '<' prim '>'								^new Link($2)
+	;
+
+rule image<TipsItem>
+	: '!' link									^new Image($2)
+	;
+
+rule prim<TipsItem>
+	: STRING									^new String($1)
+	| LITERAL									^new Literal($1)
+	;

@@ -1,0 +1,263 @@
+﻿%parser.entry=target
+%parser.class=TuyinIRParser
+%parser.namespace=Tuyin.IR.Analysis.Parser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=false
+%parser.timeout=2000000000
+%parser.inline=0
+%parser.debug=true
+%parser.state=false
+%token.callback=false
+%token.clarity=false
+%token.auto=true
+%import System.Collections.Generic
+%import Tuyin.IR.Analysis.Metadata
+%import Type = Tuyin.IR.Analysis.Metadata.Type
+			
+("@"|"%")(_|[a-z]|[A-Z])(_|[a-z]|[A-Z]|[0-9])+	^ID
+"!"([0-9]+)										^METAID
+(0-9)+(\.(0-9)+)?								^NUMBER
+(A-Z|a-z|0-9)									^NCODE
+\\u(NCODE)(NCODE)(NCODE)(NCODE)					^UNICODE
+\\.												^ESCAPE
+^\'|ESCAPE										^CHAR
+\'CHAR*\'										^LITERAL
+byte											^BYTE															
+sbyte											^SBYTE													
+short											^SHORT													
+ushort											^USHORT													
+int												^INT														
+uint											^UINT													
+long											^LONG															
+ulong											^ULONG															
+float											^FLOAT												
+double											^DOUBLE																											
+string											^STRING												
+import											^IMPORT
+br												^BR
+public											^PUBLIC
+private											^PRIVATE
+protected										^PROTECTED
+extern											^EXTERN
+async											^ASYNC
+return											^RETURN
+
+(\ |\n|\r|\t)+				
+
+// target
+rule target<TuyinIR>
+	: imports decls metas 														^new TuyinIR($1, $2, $3)
+	;
+
+rule imports<ImportList>
+	:																			^new ImportList()
+	| import																	^new ImportList($1)
+	| imports import															^$1.Add($2)
+	;
+
+rule import<Import>
+	: IMPORT LITERAL ';' 														^new Import($1, mInput)
+	;
+
+rule metas<MetadataList>
+	:																			^new MetadataList() 
+	| metas meta																^$1.Add($2)
+	;
+
+rule meta<MetadataDecl>
+	: METAID ID '(' elist ')'													^new MetadataDecl($1, $2, $4, mInput)
+	;
+
+rule decls<DeclareList>
+	: 																			^new DeclareList()
+	| decls linkage modifiter decl												^$1.Add($4.SetHead($2, $3))
+	;
+
+rule decl<Declare>
+	: func_decl																	^$1
+	;
+
+// function
+rule func_decl<FuncDecl>
+	: typedName '(' argse ')' func_body											^new FuncDecl($1, $3, $5)
+	| typedName '(' argse ')' METAID func_body									^new FuncDecl($1, $3, $6, new MetadataReference($5, mInput))
+	;
+
+rule func_body<StmtList>
+	: ';'																		^null
+	| '{' stmtlist '}'															^$2
+	;
+
+rule argse<Args>
+	:																			^new Args()
+	| args																		^$1
+	;
+
+rule args<Args>
+	: typedName																	^new Args($1)
+	| args ',' typedName														^$1.Add($3)
+	;
+
+rule stmt<StmtRoot>	 
+	: ID ':' 																	^new StmtLabel($2, mInput)
+	| RETURN exp ';'															^new StmtReturn($2, $1, $3)
+	| exp ';'																	^new StmtExpression($1)
+	| BR ID ',' exp ';'															^new StmtTest($4, $2, mInput, $1, $5)
+	| BR ID ';'																	^new StmtGoto($2, mInput)
+	| stmt METAID																^new StmtMetadata($1, $2, mInput)
+	| '{' stmtlist '}'															^new StmtBlock($2, $1, $3)
+	;
+
+rule stmtlist<StmtList>
+	: stmt																		^new StmtList($1)
+	| stmtlist stmt																^$1.Add($2)
+	;
+	
+// Expressions
+rule exp<ExprRoot>
+	: exp_ass																	^$1
+	;
+
+rule exp_ass<ExprRoot>
+	: exp_ass '=' exp_cond														^new ExprAssignment($1, $3)
+	| exp_ass '/=' exp_cond														^new ExprAssignmentDiv($1, $3)
+	| exp_ass '*=' exp_cond														^new ExprAssignmentMul($1, $3)
+	| exp_ass '+=' exp_cond														^new ExprAssignmentAdd($1, $3)
+	| exp_ass '-=' exp_cond														^new ExprAssignmentSub($1, $3)
+	| exp_ass '<<=' exp_cond													^new ExprAssignmentShiftLeft($1, $3)
+	| exp_ass '>>=' exp_cond													^new ExprAssignmentShiftRight($1, $3)
+	| exp_ass '&=' exp_cond														^new ExprAssignmentAnd($1, $3)
+	| exp_ass '^=' exp_cond														^new ExprAssignmentXor($1, $3)
+	| exp_ass '|=' exp_cond														^new ExprAssignmentOr($1, $3)
+	| exp_cond																	^$1
+	;
+
+rule exp_cond<ExprRoot>
+	: exp_cond '?' 
+	  exp_logicOr ':' 
+	  exp_logicOr																^new ExprConditional($1, $3, $5)
+	| exp_logicOr																^$1
+	;
+
+rule exp_logicOr<ExprRoot>
+	: exp_logicOr '||' exp_logicAnd												^new ExprLogicOr($1, $3)
+	| exp_logicAnd																^$1
+	;
+
+rule exp_logicAnd<ExprRoot>
+	: exp_logicAnd '&&' exp_or													^new ExprLogicAnd($1, $3)
+	| exp_or																	^$1
+	;
+
+rule exp_or<ExprRoot>
+	: exp_or '|' exp_xor														^new ExprOr($1, $3)
+	| exp_xor																	^$1
+	;
+
+rule exp_xor<ExprRoot>
+	: exp_xor '^' exp_and														^new ExprXor($1, $3)
+	| exp_and																	^$1
+	;
+
+rule exp_and<ExprRoot>
+	: exp_and '&' exp_equal														^new ExprAnd($1, $3)
+	| exp_equal																	^$1
+	;
+
+rule exp_equal<ExprRoot>
+	: exp_equal '==' exp_compare												^new ExprEqualThan($1, $3)
+	| exp_equal '!=' exp_compare												^new ExprUnequalThan($1, $3)
+	| exp_compare																^$1
+	;
+
+rule exp_compare<ExprRoot>
+	: exp_compare '>' exp_shift													^new ExprGreaterThan($1, $3)
+	| exp_compare '<' exp_shift													^new ExprLessThan($1, $3)
+	| exp_compare '>=' exp_shift												^new ExprGreaterEqual($1, $3)
+	| exp_compare '<=' exp_shift												^new ExprLessEqual($1, $3)
+	| exp_shift																	^$1
+	;
+
+rule exp_shift<ExprRoot>
+	: exp_shift '>>' exp_as														^new ExprShiftRight($1, $3)
+	| exp_shift '<<' exp_as														^new ExprShiftLeft($1, $3)
+	| exp_as																	^$1
+	;
+
+rule exp_as<ExprRoot>
+	: exp_as '+' exp_mdr														^new ExprAdd($1, $3)
+	| exp_as '-' exp_mdr														^new ExprSub($1, $3)
+	| exp_mdr																	^$1
+	;
+
+rule exp_mdr<ExprRoot>
+	: exp_mdr '*' exp_post														^new ExprMul($1, $3)
+	| exp_mdr '/' exp_post														^new ExprDiv($1, $3)
+	| exp_mdr '%' exp_post														^new ExprRem($1, $3)
+	| exp_post																	^$1
+	;
+
+rule exp_post<ExprRoot>
+	: exp_post '++'																^new ExprIncrement($1)
+	| exp_post '--'																^new ExprDecrement($1)
+	| exp_unary																	^$1
+	;
+
+rule exp_unary<ExprRoot>
+	: '!' exp_prim																^new ExprNot($2)
+	| '~' exp_prim																^new ExprNegation($2)
+	| '-' exp_prim																^new ExprNegative($2)
+	| '+' exp_prim																^new ExprPositive($2)
+	;
+
+rule exp_prim<ExprRoot>
+	: NUMBER																	^new ExprNumber($1, mInput)
+	| UNICODE																	^new ExprUnicode($1, mInput)
+	| LITERAL																	^new ExprString($1)
+	| exp '.' exp																^new ExprMember($1, $3)
+	| exp '[' exp ']'															^new ExprIndex($1, $3, $4)
+	| exp '(' elist ')'															^new ExprCall($1, $3, $4)
+	| '(' exp ')'																^$2
+	;
+
+rule elist<ExprList>
+	:																			^new ExprList()
+	| exp																		^new ExprList($1)
+	| elist ',' exp																^$1.Add($3)
+	;
+
+// type
+rule typedName<TypeNamed>
+	: type ID																	^new TypeNamed($2, $1, mInput)
+	;
+
+rule type<Type>
+	: BYTE																		^PrimitiveType.Int8
+	| SBYTE																		^PrimitiveType.Uint8
+	| SHORT																		^PrimitiveType.Int16
+	| USHORT																	^PrimitiveType.Uint16
+	| INT																		^PrimitiveType.Int32
+	| UINT																		^PrimitiveType.Uint32
+	| LONG																		^PrimitiveType.Int64
+	| ULONG																		^PrimitiveType.Uint32
+	| FLOAT																		^PrimitiveType.Float32
+	| DOUBLE																	^PrimitiveType.Float64
+	| STRING																	^new MutableType("string")
+	| type '[' ']'																^new ArrayType($1)
+	| type '*'																	^new PointerType($1)
+	;
+
+// other
+rule linkage<SourceLinkage>																
+	:																			^new SourceLinkage(default, Linkage.Private)
+	| PUBLIC																	^new SourceLinkage($1, Linkage.Public)
+	| PRIVATE																	^new SourceLinkage($1, Linkage.Private)
+	| PROTECTED																	^new SourceLinkage($1, Linkage.Protected)
+	;
+
+rule modifiter<SourceModifiter>
+	:																			^new SourceModifiter(default, Modifiter.Default)
+	| EXTERN																	^new SourceModifiter($1, Modifiter.Extern)
+	| ASYNC																		^new SourceModifiter($1, Modifiter.Async)
+	;

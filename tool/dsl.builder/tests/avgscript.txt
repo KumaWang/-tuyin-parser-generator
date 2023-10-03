@@ -1,0 +1,205 @@
+﻿%parser.entry=script
+%parser.class=AVGScriptParser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=true
+%parser.timeout=2000
+%parser.inline=0
+%token.clarity=false
+%token.auto=true
+%import System.Collections.Generic
+%import AVGCreator.packages.script.ast
+%import Index=AVGCreator.packages.script.ast.Index
+
+%format.default=1
+%indent.default=4
+
+(\ |\n|\r|\t)+									
+'//'..\n										
+'/*'..'*/'										
+(A-Z|a-z|0-9)									^NCODE
+\\u(NCODE)(NCODE)(NCODE)(NCODE)					^UNICODE
+0x(NCODE)(NCODE)								^HEX
+\\.												^ESCAPE
+^\'|ESCAPE										^CHAR
+\'(CHAR|ESCAPE|UNICODE|HEX)*\'					^STRING
+(_|A-Z|a-z)(_|A-Z|a-z|0-9)*						^ID
+(0-9)+(\.(0-9)+)								^NUMBER
+'if'											^IF
+'while'											^WHILE
+'switch'										^SWITCH
+'break'											^BREAK
+'continue'										^CONTINUE
+'case'											^CASE
+'default'										^DEFAULT
+'func'											^FUNC
+'true'											^TRUE
+'false'											^FALSE
+
+rule script<Script>
+	:											^new Script()
+	| stmt										^new Script($1)
+	;
+
+// Statements
+rule stmt<Statement>
+	: func										^$1
+	| 'if' exp stmt								^new If($2, $3)
+	| 'if' exp stmt 'else' stmt					^new IfElse($2, $3, $5)
+	| 'while' exp stmt							^new While($2, $3)
+	| 'switch' exp switch_cases					^new Switch($2, $3)
+	| 'break'									^new Break($1)
+	| 'continue'								^new Continue($1)
+	| stmt_block								^$1
+	;
+
+rule stmt_block<Statement>
+	: '{' stmt_block_stmts '}'					^$2
+	;
+
+rule stmt_block_stmts<Statement>
+	: stmt										^$1
+	| stmt_block_stmts stmt						^new Conect($1, $2)
+	;
+
+rule switch_cases<SwitchCases>
+	:											^new SwitchCases()
+	| switch_case								^new SwitchCases($1)
+	| switch_cases switch_case					^$1.Add($2)
+	;
+
+rule switch_case<SwitchCase>
+	: 'case' exp ':' stmt						^new SwitchCase($2, $4)
+	| 'default' ':' stmt						^new SwitchDefault($3)
+	;
+
+rule func<Method>
+	: 'func' ID func_formals stmt				^new Method($2, $3, $4)
+	;
+
+rule func_formals<Formals>
+	:											^new Formals()
+	| ID										^new Formals($1)
+	| func_formals ID							^$1.Add($2)
+	;
+
+// Animation
+
+// Expressions
+rule exp<Expression>
+	: exp_ass									^$1
+	;
+
+rule exp_ass<Expression>
+	: exp_ass '=' exp_cond						^new Assignment($1, $3)
+	| exp_ass '/=' exp_cond						^new AssignmentDiv($1, $3)
+	| exp_ass '*=' exp_cond						^new AssignmentMul($1, $3)
+	| exp_ass '+=' exp_cond						^new AssignmentAdd($1, $3)
+	| exp_ass '-=' exp_cond						^new AssignmentSub($1, $3)
+	| exp_ass '<<=' exp_cond					^new AssignmentShiftLeft($1, $3)
+	| exp_ass '>>=' exp_cond					^new AssignmentShiftRight($1, $3)
+	| exp_ass '&=' exp_cond						^new AssignmentAnd($1, $3)
+	| exp_ass '^=' exp_cond						^new AssignmentXor($1, $3)
+	| exp_ass '|=' exp_cond						^new AssignmentOr($1, $3)
+	| exp_cond									^$1
+	;
+
+rule exp_cond<Expression>
+	: exp_cond '?' 
+	  exp_logicOr ':' 
+	  exp_logicOr								^new Conditional($1, $3, $5)
+	| exp_logicOr								^$1
+	;
+
+rule exp_logicOr<Expression>
+	: exp_logicOr '||' exp_logicAnd				^new LogicOr($1, $3)
+	| exp_logicAnd								^$1
+	;
+
+rule exp_logicAnd<Expression>
+	: exp_logicAnd '&&' exp_or					^new LogicAnd($1, $3)
+	| exp_or									^$1
+	;
+
+rule exp_or<Expression>
+	: exp_or '|' exp_xor						^new Or($1, $3)
+	| exp_xor									^$1
+	;
+
+rule exp_xor<Expression>
+	: exp_xor '^' exp_and						^new Xor($1, $3)
+	| exp_and									^$1
+	;
+
+rule exp_and<Expression>
+	: exp_and '&' exp_equal						^new And($1, $3)
+	| exp_equal									^$1
+	;
+
+rule exp_equal<Expression>
+	: exp_equal '==' exp_compare				^new EqualThan($1, $3)
+	| exp_equal '!=' exp_compare				^new UnequalThan($1, $3)
+	| exp_compare								^$1
+	;
+
+rule exp_compare<Expression>
+	: exp_compare '>' exp_shift					{ new GreaterThan($1, $3) }
+	| exp_compare '<' exp_shift					{ new LessThan($1, $3) }
+	| exp_compare '>=' exp_shift				{ new GreaterEqual($1, $3) }
+	| exp_compare '<=' exp_shift				{ new LessEqual($1, $3) }
+	| exp_shift									{ $1 }
+	;
+
+rule exp_shift<Expression>
+	: exp_shift '>>' exp_as						{ new ShiftRight($1, $3) }
+	| exp_shift '<<' exp_as						{ new ShiftLeft($1, $3) }
+	| exp_as									{ $1 }
+	;
+
+rule exp_as<Expression>
+	: exp_as '+' exp_mdr						{ new Add($1, $3) }
+	| exp_as '-' exp_mdr						{ new Sub($1, $3) }
+	| exp_mdr									{ $1 }
+	;
+
+rule exp_mdr<Expression>
+	: exp_mdr '*' exp_unary						{ new Mul($1, $3) }
+	| exp_mdr '/' exp_unary						{ new Div($1, $3) }
+	| exp_mdr '%' exp_unary						{ new Rem($1, $3) }
+	| exp_unary									{ $1 }
+	;
+
+rule exp_unary<Expression>
+	: '!' exp_prim								{ new Not($2) }
+	| '~' exp_prim								{ new Negation($2) }
+	| '-' exp_prim								{ new Negative($2) }
+	| '+' exp_prim								{ new Positive($2) }
+	| exp_prim '++'								{ new Increment($1) }
+	| exp_prim '--'								{ new Decrement($1) }
+	| exp_prim									{ $1 }
+	;
+
+rule exp_prim<Expression>
+	: id										{ $1 }
+	| ID '.' ID									{ new Member($1, $3) }
+	| 'true'									{ new True($1) }
+	| 'false'									{ new False($1) }
+	| NUMBER									{ new Number($1) }
+	//| STRING									{ new Literal($1) }
+	| exp_prim '[' exp ']'						{ new Index($1, $3) }
+	| exp_prim '(' args ')'						{ new Call($1, $3) }
+	| 'import' exp								{ new Import($2) }
+	| '(' exp ')'								{ $2 }
+	;
+	
+rule args<Args>
+	:											{ new Args() }
+	| exp										{ new Args($1) }
+	| args ',' exp								{ $1.Add($3) }
+	;
+
+rule id<Identifier>
+	: ID										{ new Identifier(IdentifierType.Session, $1) }			// 单次会话变量
+	| '$' ID									{ new Identifier(IdentifierType.Retention, $2) }		// 保持性变量
+	| '@' ID									{ new Identifier(IdentifierType.Temporary, $2) }		// 临时变量
+	;

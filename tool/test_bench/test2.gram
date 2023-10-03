@@ -1,0 +1,36 @@
+﻿%parser.entry=exp_shift
+%parser.class=MarkdownParser
+%parser.namespace=Tuitor.packages.richtext.format.parsers
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=false
+%parser.timeout=2000
+%parser.inline=0
+%parser.debug=true
+%token.clarity=false
+%token.auto=true
+%import Tuitor.packages.richtext.format
+%import Tuitor.packages.richtext.format.parsers.markdown
+%formal ParseReport
+			
+...\n											^LITERAL
+(0-9)+											^NUMBER
+(^\n)*											^FORMAT
+..```											^FORMAT_DATA
+(\ |\n|\r|\t)+				
+
+rule exp_shift<ExprRoot>
+	: exp_shift '>>' exp_as														^new ExprShiftRight($1, $3)
+	| exp_shift '<<' exp_as														^new ExprShiftLeft($1, $3)
+	| exp_as																	^$1
+	;
+
+rule exp_as<ExprRoot>
+	: exp_as '+' exp_mdr														^new ExprAdd($1, $3)
+	| exp_as '-' exp_mdr														^new ExprSub($1, $3)
+	| exp_mdr																	^$1
+	;
+
+rule exp_mdr<ExprRoot>
+	: '1'																		^$1
+	;

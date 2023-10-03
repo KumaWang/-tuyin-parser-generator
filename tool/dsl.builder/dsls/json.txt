@@ -1,0 +1,69 @@
+﻿%parser.entry=json
+%parser.class=JsonParser
+%parser.namespace=TuEditor.packages.richtext.format.parser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=true
+%parser.timeout=2000
+%parser.inline=0
+%parser.debug=true
+%token.clarity=false
+%token.auto=true
+%import TuEditor.packages.richtext.format
+%formal ParseReport
+
+\-?(0-9)+(\.(0-9)+)?										^NUMBER
+(NUMBER)e(NUMBER)											^SCIENTIFIC
+(A-Z|a-z|0-9)												^NCODE
+\\u(NCODE)(NCODE)(NCODE)(NCODE)								^UNICODE
+0x(NCODE)(NCODE)											^HEX
+\\.															^ESCAPE
+^\"|(\\\")													^CHAR
+\"(CHAR)*\"													^STRING
+(\ |\n|\r|\t)+			
+\/\/(^\n)*													#57A64A
+
+rule json
+	: json_item												
+	;
+
+rule json_item
+	: json_obj												
+	| json_arr												
+	| json_prim												
+	;
+
+rule json_obj
+	: '{'[F1|I2] json_obj_mems[F1|I-2] '}'					^Scope($1.SourceSpan.Start,$3.SourceSpan.End,"{...}",formal_0)
+	;
+
+rule json_obj_mems
+	:														
+	| json_obj_mem											
+	| json_obj_mems[F0] ','[F1] json_obj_mem				
+	;
+
+rule json_obj_mem
+	: STRING[F1] ':'[F1] json_item							
+	;
+
+rule json_arr
+	: '['[F1|I2] json_arr_items[F1|I-2] ']'					^Scope($1.SourceSpan.Start,$3.SourceSpan.End,"[...]",formal_0)
+	;
+
+rule json_arr_items
+	:														
+	| json_item												
+	| json_arr_items[F0] ','[F1] json_item					
+	;
+
+rule json_prim
+	: 'null'												
+	| 'true'												
+	| 'false'												
+	| NUMBER												
+	| SCIENTIFIC											
+	| UNICODE											
+	| HEX													
+	| STRING												
+	;

@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LanguageVersion>11.0</LanguageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="old\ControlFactory.cs" />
+    <Compile Remove="old\StepFactory.cs" />
+    <Compile Remove="StepFactory~.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="old\ControlFactory.cs" />
+    <None Include="old\StepFactory.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\libgraph\libgraph.csproj" />
+  </ItemGroup>
+
+</Project>

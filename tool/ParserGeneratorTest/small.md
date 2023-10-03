@@ -1,0 +1,15 @@
+_italics2_
+[www.baidu.com](baidu)
+**bold**
+~~delete~~
+[^label]
+*italics*
+***italicsbold***
+<www.baidu.com>
+#Level1
+##Level2
+###Level3
+####Level4
+#####Level5
+######Level6
+!<https://cdn.staticfile.org/emoji-datasource-apple/14.0.0/img/apple/64/1f603.png>

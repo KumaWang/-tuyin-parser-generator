@@ -1,0 +1,64 @@
+﻿%parser.entry=xml
+%parser.class=XmlParser
+%parser.namespace=TuEditor.packages.richtext.format.parser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=true
+%parser.timeout=2000
+%parser.inline=0
+%token.clarity=false
+%token.auto=true
+%token.save=false
+%parser.state=false
+%parser.debug=true
+%import TuEditor.packages.richtext.format
+%formal ParseReport
+
+\-?(0-9)+(\.(0-9)+)?										^NUMBER
+(NUMBER)e(NUMBER)											^SCIENTIFIC
+(A-Z|a-z|0-9)												^NCODE
+\\u(NCODE)[Metadata](NCODE)(NCODE)(NCODE)					^!UNICODE { u0x1e }
+0x(NCODE)(NCODE)											^HEX
+\\.															^ESCAPE
+^\"|ESCAPE													^CHAR
+\"(CHAR)*\"													^STRING
+(^' ')*														^ID
+'<!--'..'-->'												#fff
+(\ |\n|\r|\t)+			
+
+rule xml
+	: '<'[F0|I2] ID attributes[F0] '>'
+	  content
+	  '<'[F0] '\\'[F0|I-2] ID[F0] '>'						{
+																var loc8ctx = $8.GetContent(mInput);
+																var loc2ctx = $2.GetContent(mInput);
+																Scope($1.SourceSpan.Start,$9.SourceSpan.End,loc2ctx,formal_0);
+																if(loc8ctx != loc2ctx) ReportError($8.SourceSpan,loc8ctx+"与前一个标签标示"+loc2ctx+"不同。",formal_0);
+															}
+	;
+
+rule content
+	: value													
+	| xml													
+	;
+
+rule attributes
+	:														
+	| attribute												
+	| attributes[F1] attribute								
+	;
+
+rule attribute
+	: ID[F0] '='[F0] value								
+	;
+
+rule value
+	: 'null'												
+	| 'true'												
+	| 'false'												
+	| NUMBER												
+	| SCIENTIFIC											
+	| UNICODE												
+	| HEX													
+	| STRING												
+	;

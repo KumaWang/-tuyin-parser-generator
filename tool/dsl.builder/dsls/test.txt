@@ -1,0 +1,26 @@
+﻿%parser.entry=json
+%parser.class=TestParser
+%parser.namespace=TuEditor.packages.richtext.format.parser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=true
+%parser.timeout=2000
+%parser.inline=0
+%token.clarity=false
+%token.auto=true
+%import TuEditor.packages.richtext.format
+%formal ParseReport
+
+\-?(0-9)+(\.(0-9)+)											^NUMBER
+(NUMBER)e(NUMBER)											^SCIENTIFIC
+(A-Z|a-z|0-9)												^NCODE
+\\u(NCODE)(NCODE)(NCODE)(NCODE)								^UNICODE
+0x(NCODE)(NCODE)											^HEX
+\\.															^ESCAPE
+^\"|(\\\")													^CHAR
+\"(CHAR)*\"													^STRING
+(\ |\n|\r|\t)+			
+
+rule json
+	: NUMBER | HEX												
+	;

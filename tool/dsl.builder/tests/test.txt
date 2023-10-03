@@ -1,0 +1,23 @@
+﻿%parser.entry=test
+%parser.class=TextParser
+%parser.target=csharp
+%parser.minimize=true
+%parser.table=true
+%parser.timeout=2000
+%parser.inline=0
+%token.clarity=false
+%token.auto=true
+%import TuEditor.packages.script.ast
+
+\-?(0-9)+(\.(0-9)+)			^NUMBER
+(NUMBER)e(NUMBER)			^SCIENTIFIC
+(aa)*						^loop1
+(ab)*						^loop2
+
+rule test
+	: loop1 | loop2
+	;
+
+rule test2
+	: NUMBER | SCIENTIFIC
+	;

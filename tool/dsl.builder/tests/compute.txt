@@ -1,0 +1,133 @@
+﻿%parser.entry=script
+%parser.class=ComputeParser
+%parser.target=csharp
+%parser.inline=0
+%parser.minimize=true
+%parser.table=true
+%token.clarity=false
+%token.auto=true
+%import System.Collections.Generic
+%import Tuyin.AI.Compute.dsl.ast
+
+\'{ReadLiteral()}								^LITERAL
+(A-Z|a-z)(A-Z|a-z|0-9)*							^ID
+(0-9)*('.'(0-9)+)?								^NUMBER
+$(0-9)+											^TOKEN
+(\ |\n|\r|\t)+									
+
+rule list3<List<Match>>
+	: 											{ new List<Match>() }
+	| TOKEN										{ new List<Match>($1) }
+	| list3 TOKEN								{ $1.Add($2) }
+	;
+
+# 入口
+rule script<Script>
+	:											{ new Script() }
+	| namespaces								{ new Script($1) }
+	| script member								{ $1.Add($2) }
+	;
+
+# 命名空间
+rule namespaces<Namespace>
+	: namespace_path ';'						{ $1 }
+	;
+
+rule namespace_path<Namespace>
+	: ID										{ new Namespace($1) }
+	| namespace_path '.' ID						{ $1.Add($3) }
+	;
+
+# 类型
+rule type<ComputeType>
+	: 'bool'									{ new BooleanType($1) }
+	| 'byte'									{ new ByteType($1) }
+	| 'ubyte'									{ new UbyteType($1) }
+	| 'short'									{ new ShortType($1) }
+	| 'ushort'									{ new UshortType($1) }
+	| 'int'										{ new IntType($1) }
+	| 'uint'									{ new UintType($1) }
+	| 'float'									{ new FloatType($1) }
+	| 'double'									{ new DoubleType($1) }
+	| 'half'									{ new HalfType($1) }
+	| ID										{ new IdentifierType($1) }
+	;
+
+# 可见性
+rule visibility<Visibility>
+	:											{ new Visibility(default, VisibilityType.Private) }
+	| 'public'									{ new Visibility($1, VisibilityType.Public) }
+	| 'internal'								{ new Visibility($1, VisibilityType.Internal) }
+	| 'private'									{ new Visibility($1, VisibilityType.Private) }
+	;
+
+# 修饰符
+rule modifiter<Modifiter>
+	:											{ new Modifiter(default, ModifiterType.Default) } 
+	| 'extern'									{ new Modifiter($1, ModifiterType.Extern) }
+	| 'abstract'								{ new Modifiter($1, ModifiterType.Abstract) }
+	| 'async'									{ new Modifiter($1, ModifiterType.Async) }
+	| 'operator'								{ new Modifiter($1, ModifiterType.Operator) }
+	;
+
+# 成员
+rule member<Member>
+	: visibility modifiter member_info			{ new Member($1, $2, $3) }
+	;
+
+rule member_info<MemberInfo>
+	: structure									{ $1 }
+	| rule										{ $1 } 
+	;
+
+# 结构
+rule structure<StructInfo>
+	: 'struct' ID '(' structure_fields ')'	';'	{ new StructInfo($2, $4) }
+	;
+
+rule structure_fields<StructMembers>
+	:											{ new StructMembers() }
+	| structure_field							{ new StructMembers($1) }
+	| structure_fields ',' structure_field		{ $1.Add($3) }
+	;
+
+rule structure_field<StructMember>
+	: type ID									{ new StructMember($1, $2) }
+	;
+
+# 规则
+rule rule<RuleInfo>
+	: ID ':' rule_or ';'						{ new RuleInfo($1, $3) }
+	;
+
+rule rule_or<RuleItem>
+	: rule_logic								{ $1 }
+	| rule_or '|' rule_logic					{ new RuleOr($1, $3) }
+	;
+
+rule rule_logic<RuleItem>
+	: rule_rule									{ $1 } 
+	| rule_rule '^' logic						{ new RuleLogic($1, $3) }
+	;
+
+rule rule_rule<RuleItem>
+	: rule_prime								{ $1 }
+	| rule_rule rule_prime						{ new RuleRule($1, $2) }
+	;
+
+rule rule_prime<RuleItem>
+	: ID										{ new RuleReference($1) }
+	| LITERAL									{ new RuleLiteral($1) }
+	;
+
+# 定义某种特征
+rule logic<Logic>
+	: logic_prim								{ $1 }
+	| logic_prim '[' NUMBER ']'					{ new LogicPost($1, $3) }
+	| logic_prim '[' NUMBER '-' NUMBER ']'		{ new LogicPost($1, $3, $5) }
+	;
+
+rule logic_prim<Logic>
+	: TOKEN 'is' ID								{ new LogicEqual($1, $3) }
+	| TOKEN 'not' ID							{ new LogicNot($1, $3) }
+	;
