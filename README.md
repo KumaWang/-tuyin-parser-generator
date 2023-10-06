@@ -13,6 +13,10 @@
 7. json2.txt Tuyin json parser dsl
 8. ir.txt 复杂parser
 
+#### 测试用例
+
+https://gitee.com/wangmun/tuyin-parser-generator
+
 #### 已知问题
 
 1.parser解决中缀问题
