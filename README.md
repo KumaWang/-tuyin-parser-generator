@@ -17,9 +17,9 @@
 
 1.parser解决中缀问题
 
-typedName '(' args ')' func_body	^new FuncDecl($1, $3, $5)
+    typedName '(' args ')' func_body	^new FuncDecl($1, $3, $5)
 
-typedName '(' args ')' METAID func_body	^new FuncDecl($1, $3, $6, new MetadataReference($5, mInput))
+    typedName '(' args ')' METAID func_body	^new FuncDecl($1, $3, $6, new MetadataReference($5, mInput))
 
 2.parser解决循环插入问题
 
