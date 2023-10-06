@@ -13,6 +13,24 @@
 7. json2.txt Tuyin json parser dsl
 8. ir.txt 复杂parser
 
+#### 已知问题
+
+1.parser解决中缀问题
+
+typedName '(' args ')' func_body	^new FuncDecl($1, $3, $5)
+
+typedName '(' args ')' METAID func_body	^new FuncDecl($1, $3, $6, new MetadataReference($5, mInput))
+
+2.parser解决循环插入问题
+
+3.添加新的元数据机制[详情参考Tuyin.IR.Compiler项目]
+
+4.新的外部函数机制[详情参考Tuyin.IR.Compiler项目]
+
+5.完成updown2ciryle
+
+6.更新wasm编译，真正支持循环结构[详情参考Tuyin.IR.Compiler项目]
+
 #### 更新日志 2023-10-3
 
 1.解决了解析相同路径产生的BUG
